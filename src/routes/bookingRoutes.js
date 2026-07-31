@@ -1,16 +1,32 @@
 const express = require("express");
-
 const router = express.Router();
-
-const verifyToken = require("../middleware/authMiddleware");
 
 const {
   bookStation,
   myBookings,
+  cancelMyBooking,
 } = require("../controllers/bookingController");
 
-router.post("/", verifyToken, bookStation);
+const authMiddleware = require("../middleware/authMiddleware");
 
-router.get("/my", verifyToken, myBookings);
+const {
+  bookingValidationRules,
+  validateBooking,
+} = require("../validation/bookingValidation");
+
+// Create Booking
+router.post(
+  "/",
+  authMiddleware,
+  bookingValidationRules,
+  validateBooking,
+  bookStation
+);
+
+// Get My Bookings
+router.get("/my", authMiddleware, myBookings);
+
+// Cancel Booking
+router.patch("/:id/cancel", authMiddleware, cancelMyBooking);
 
 module.exports = router;

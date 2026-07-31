@@ -1,32 +1,27 @@
 const {
-  createBooking,
   checkBookingConflict,
+  createBooking,
   getMyBookings,
+  cancelBooking,
 } = require("../models/bookingModel");
 
-// Create booking
+// ========================
+// Create Booking
+// ========================
 const bookStation = async (req, res) => {
   try {
+    const { station_id, booking_date, start_time, end_time } = req.body;
     const userId = req.user.id;
 
-    const {
-      station_id,
-      booking_date,
-      start_time,
-      end_time,
-    } = req.body;
-
-    if (
-      !station_id ||
-      !booking_date ||
-      !start_time ||
-      !end_time
-    ) {
+    // Business Rule
+    if (start_time >= end_time) {
       return res.status(400).json({
-        message: "All fields are required",
+        success: false,
+        message: "Start time must be before end time.",
       });
     }
 
+    // Check booking conflict
     const conflict = await checkBookingConflict(
       station_id,
       booking_date,
@@ -35,11 +30,13 @@ const bookStation = async (req, res) => {
     );
 
     if (conflict) {
-      return res.status(409).json({
+      return res.status(400).json({
+        success: false,
         message: "This time slot is already booked.",
       });
     }
 
+    // Create Booking
     const booking = await createBooking(
       userId,
       station_id,
@@ -48,32 +45,74 @@ const bookStation = async (req, res) => {
       end_time
     );
 
-    res.status(201).json({
+    return res.status(201).json({
+      success: true,
       message: "Booking created successfully",
       booking,
     });
-
   } catch (error) {
     console.error(error);
 
-    res.status(500).json({
-      message: "Server Error",
+    return res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 };
 
-// Get logged-in user's bookings
+// ========================
+// Get My Bookings
+// ========================
 const myBookings = async (req, res) => {
   try {
-    const bookings = await getMyBookings(req.user.id);
+    const userId = req.user.id;
+    const status = req.query.status;
 
-    res.status(200).json(bookings);
+    const bookings = await getMyBookings(userId, status);
 
+    return res.status(200).json({
+      success: true,
+      total: bookings.length,
+      bookings,
+    });
   } catch (error) {
     console.error(error);
 
-    res.status(500).json({
-      message: "Server Error",
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ========================
+// Cancel Booking
+// ========================
+const cancelMyBooking = async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+    const userId = req.user.id;
+
+    const booking = await cancelBooking(bookingId, userId);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "Booking not found or already cancelled.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Booking cancelled successfully.",
+      booking,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
     });
   }
 };
@@ -81,4 +120,5 @@ const myBookings = async (req, res) => {
 module.exports = {
   bookStation,
   myBookings,
+  cancelMyBooking,
 };
