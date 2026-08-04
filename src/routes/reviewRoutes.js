@@ -1,9 +1,9 @@
 const express = require("express");
-const { validationResult } = require("express-validator");
 
 const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
+const validateRequest = require("../middleware/validateRequest");
 
 const {
   addReview,
@@ -21,24 +21,16 @@ router.post(
   "/",
   authMiddleware,
   reviewValidation,
-  (req, res, next) => {
-    const errors = validationResult(req);
-
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array(),
-      });
-    }
-
-    next();
-  },
+  validateRequest,
   addReview
 );
 
 // =======================
-// Get Reviews of Station
+// Get Reviews
 // =======================
-router.get("/station/:stationId", getStationReviews);
+router.get(
+  "/station/:stationId",
+  getStationReviews
+);
 
 module.exports = router;
