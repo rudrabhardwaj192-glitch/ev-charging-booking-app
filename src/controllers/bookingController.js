@@ -1,124 +1,100 @@
+const asyncHandler = require("../utils/asyncHandler");
+
 const {
-  checkBookingConflict,
   createBooking,
-  getMyBookings,
+  getUserBookings,
+  getBookingById,
   cancelBooking,
 } = require("../models/bookingModel");
 
-// ========================
+// ==========================================
 // Create Booking
-// ========================
-const bookStation = async (req, res) => {
-  try {
-    const { station_id, booking_date, start_time, end_time } = req.body;
-    const userId = req.user.id;
+// ==========================================
+const bookStation = asyncHandler(async (req, res) => {
+  const {
+    user_id,
+    station_id,
+    booking_date,
+    start_time,
+    end_time,
+  } = req.body;
 
-    // Business Rule
-    if (start_time >= end_time) {
-      return res.status(400).json({
-        success: false,
-        message: "Start time must be before end time.",
-      });
-    }
+  const booking = await createBooking(
+    user_id,
+    station_id,
+    booking_date,
+    start_time,
+    end_time
+  );
 
-    // Check booking conflict
-    const conflict = await checkBookingConflict(
-      station_id,
-      booking_date,
-      start_time,
-      end_time
-    );
+  res.status(201).json({
+    success: true,
+    message: "Booking created successfully.",
+    data: booking,
+  });
+});
 
-    if (conflict) {
-      return res.status(400).json({
-        success: false,
-        message: "This time slot is already booked.",
-      });
-    }
+// ==========================================
+// Get User Bookings
+// ==========================================
+const myBookings = asyncHandler(async (req, res) => {
+  const { user_id } = req.params;
 
-    // Create Booking
-    const booking = await createBooking(
-      userId,
-      station_id,
-      booking_date,
-      start_time,
-      end_time
-    );
+  const bookings = await getUserBookings(user_id);
 
-    return res.status(201).json({
-      success: true,
-      message: "Booking created successfully",
-      booking,
-    });
-  } catch (error) {
-    console.error(error);
+  res.status(200).json({
+    success: true,
+    total: bookings.length,
+    data: bookings,
+  });
+});
 
-    return res.status(500).json({
+// ==========================================
+// Get Single Booking
+// ==========================================
+const getBooking = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const booking = await getBookingById(id);
+
+  if (!booking) {
+    return res.status(404).json({
       success: false,
-      message: error.message,
+      message: "Booking not found.",
     });
   }
-};
 
-// ========================
-// Get My Bookings
-// ========================
-const myBookings = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const status = req.query.status;
+  res.status(200).json({
+    success: true,
+    data: booking,
+  });
+});
 
-    const bookings = await getMyBookings(userId, status);
-
-    return res.status(200).json({
-      success: true,
-      total: bookings.length,
-      bookings,
-    });
-  } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
-
-// ========================
+// ==========================================
 // Cancel Booking
-// ========================
-const cancelMyBooking = async (req, res) => {
-  try {
-    const bookingId = req.params.id;
-    const userId = req.user.id;
+// ==========================================
+const removeBooking = asyncHandler(async (req, res) => {
+  const { id } = req.params;
 
-    const booking = await cancelBooking(bookingId, userId);
+  const booking = await cancelBooking(id);
 
-    if (!booking) {
-      return res.status(404).json({
-        success: false,
-        message: "Booking not found or already cancelled.",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: "Booking cancelled successfully.",
-      booking,
-    });
-  } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
+  if (!booking) {
+    return res.status(404).json({
       success: false,
-      message: error.message,
+      message: "Booking not found.",
     });
   }
-};
+
+  res.status(200).json({
+    success: true,
+    message: "Booking cancelled successfully.",
+    data: booking,
+  });
+});
 
 module.exports = {
   bookStation,
   myBookings,
-  cancelMyBooking,
+  getBooking,
+  removeBooking,
 };

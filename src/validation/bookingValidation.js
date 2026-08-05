@@ -1,6 +1,5 @@
 const { body, validationResult } = require("express-validator");
 
-// Booking Validation Rules
 const bookingValidationRules = [
   body("station_id")
     .notEmpty()
@@ -23,7 +22,6 @@ const bookingValidationRules = [
     .withMessage("End time is required."),
 ];
 
-// Validation Middleware
 const validateBooking = (req, res, next) => {
   const errors = validationResult(req);
 

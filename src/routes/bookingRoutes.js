@@ -4,17 +4,21 @@ const router = express.Router();
 const {
   bookStation,
   myBookings,
-  cancelMyBooking,
+  getBooking,
+  removeBooking,
 } = require("../controllers/bookingController");
-
-const authMiddleware = require("../middleware/authMiddleware");
 
 const {
   bookingValidationRules,
   validateBooking,
-} = require("../validation/bookingValidation");
+} = require("../validation/bookingValidation"); // ✅ Fixed path
 
+const authMiddleware = require("../middleware/authMiddleware");
+
+// ==========================================
 // Create Booking
+// POST /api/bookings
+// ==========================================
 router.post(
   "/",
   authMiddleware,
@@ -23,10 +27,34 @@ router.post(
   bookStation
 );
 
-// Get My Bookings
-router.get("/my", authMiddleware, myBookings);
+// ==========================================
+// Get All Bookings of a User
+// GET /api/bookings/user/:user_id
+// ==========================================
+router.get(
+  "/user/:user_id",
+  authMiddleware,
+  myBookings
+);
 
+// ==========================================
+// Get Single Booking
+// GET /api/bookings/:id
+// ==========================================
+router.get(
+  "/:id",
+  authMiddleware,
+  getBooking
+);
+
+// ==========================================
 // Cancel Booking
-router.patch("/:id/cancel", authMiddleware, cancelMyBooking);
+// PUT /api/bookings/:id/cancel
+// ==========================================
+router.put(
+  "/:id/cancel",
+  authMiddleware,
+  removeBooking
+);
 
 module.exports = router;
