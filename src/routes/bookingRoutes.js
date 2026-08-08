@@ -5,13 +5,14 @@ const {
   bookStation,
   myBookings,
   getBooking,
+  bookedSlots,
   removeBooking,
 } = require("../controllers/bookingController");
 
 const {
   bookingValidationRules,
   validateBooking,
-} = require("../validation/bookingValidation"); // ✅ Fixed path
+} = require("../validation/bookingValidation");
 
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -28,7 +29,20 @@ router.post(
 );
 
 // ==========================================
-// Get All Bookings of a User
+// Get Booked Slots
+// GET /api/bookings/slots/:stationId?date=YYYY-MM-DD
+//
+// IMPORTANT:
+// This route MUST come before /:id
+// ==========================================
+router.get(
+  "/slots/:stationId",
+  authMiddleware,
+  bookedSlots
+);
+
+// ==========================================
+// Get User Bookings
 // GET /api/bookings/user/:user_id
 // ==========================================
 router.get(

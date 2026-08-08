@@ -1,101 +1,70 @@
 const {
-  findFavorite,
   addFavorite,
   getFavorites,
   removeFavorite,
 } = require("../models/favoriteModel");
 
-// =======================
-// Add Favorite
-// =======================
-const addStationToFavorites = async (req, res) => {
+const add = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { station_id } = req.body;
+    const { user_id, station_id } = req.body;
 
-    const existingFavorite = await findFavorite(userId, station_id);
+    const favorite = await addFavorite(user_id, station_id);
 
-    if (existingFavorite) {
-      return res.status(400).json({
-        success: false,
-        message: "Station already added to favorites.",
-      });
-    }
-
-    const favorite = await addFavorite(userId, station_id);
-
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
-      message: "Station added to favorites.",
-      favorite,
+      message: "Added to favorites",
+      data: favorite,
     });
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
 
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Server Error",
     });
   }
 };
 
-// =======================
-// Get My Favorites
-// =======================
-const getMyFavorites = async (req, res) => {
+const getAll = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const { user_id } = req.params;
 
-    const favorites = await getFavorites(userId);
+    const favorites = await getFavorites(user_id);
 
-    return res.status(200).json({
+    res.json({
       success: true,
-      total: favorites.length,
-      favorites,
+      data: favorites,
     });
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
 
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      message: error.message,
     });
   }
 };
 
-// =======================
-// Remove Favorite
-// =======================
-const deleteFavorite = async (req, res) => {
+const remove = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const { stationId } = req.params;
+    const { user_id, station_id } = req.body;
 
-    const favorite = await removeFavorite(userId, stationId);
+    await removeFavorite(user_id, station_id);
 
-    if (!favorite) {
-      return res.status(404).json({
-        success: false,
-        message: "Favorite not found.",
-      });
-    }
-
-    return res.status(200).json({
+    res.json({
       success: true,
-      message: "Favorite removed successfully.",
+      message: "Favorite Removed",
     });
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
 
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      message: error.message,
     });
   }
 };
 
 module.exports = {
-  addStationToFavorites,
-  getMyFavorites,
-  deleteFavorite,
+  add,
+  getAll,
+  remove,
 };

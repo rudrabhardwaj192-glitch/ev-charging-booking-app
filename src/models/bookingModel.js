@@ -1,6 +1,9 @@
 const pool = require("../config/db");
 
-// Create a new booking
+// ==========================================
+// CREATE BOOKING
+// Prevent overlapping bookings
+// ==========================================
 const createBooking = async (
   user_id,
   station_id,
@@ -8,32 +11,77 @@ const createBooking = async (
   start_time,
   end_time
 ) => {
-  const result = await pool.query(
-    `
-    INSERT INTO bookings
-    (
-      user_id,
-      station_id,
-      booking_date,
-      start_time,
-      end_time
-    )
-    VALUES ($1, $2, $3, $4, $5)
-    RETURNING *
-    `,
-    [
-      user_id,
-      station_id,
-      booking_date,
-      start_time,
-      end_time,
-    ]
-  );
+  const client = await pool.connect();
 
-  return result.rows[0];
+  try {
+    await client.query("BEGIN");
+
+    // Check for overlapping active booking
+    const conflict = await client.query(
+      `
+      SELECT id
+      FROM bookings
+      WHERE station_id = $1
+        AND booking_date = $2
+        AND status != 'Cancelled'
+        AND start_time < $4
+        AND end_time > $3
+      LIMIT 1
+      `,
+      [
+        station_id,
+        booking_date,
+        start_time,
+        end_time,
+      ]
+    );
+
+    if (conflict.rows.length > 0) {
+      const error = new Error(
+        "This time slot is already booked."
+      );
+
+      error.statusCode = 409;
+
+      throw error;
+    }
+
+    const result = await client.query(
+      `
+      INSERT INTO bookings
+      (
+        user_id,
+        station_id,
+        booking_date,
+        start_time,
+        end_time
+      )
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+      `,
+      [
+        user_id,
+        station_id,
+        booking_date,
+        start_time,
+        end_time,
+      ]
+    );
+
+    await client.query("COMMIT");
+
+    return result.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
-// Get all bookings for a user
+// ==========================================
+// GET ALL BOOKINGS FOR USER
+// ==========================================
 const getUserBookings = async (user_id) => {
   const result = await pool.query(
     `
@@ -54,7 +102,9 @@ const getUserBookings = async (user_id) => {
     JOIN stations s
       ON b.station_id = s.id
     WHERE b.user_id = $1
-    ORDER BY b.booking_date DESC, b.start_time ASC
+    ORDER BY
+      b.booking_date DESC,
+      b.start_time ASC
     `,
     [user_id]
   );
@@ -62,7 +112,9 @@ const getUserBookings = async (user_id) => {
   return result.rows;
 };
 
-// Get booking by ID
+// ==========================================
+// GET BOOKING BY ID
+// ==========================================
 const getBookingById = async (booking_id) => {
   const result = await pool.query(
     `
@@ -76,7 +128,38 @@ const getBookingById = async (booking_id) => {
   return result.rows[0];
 };
 
-// Cancel booking
+// ==========================================
+// GET BOOKED SLOTS
+// ==========================================
+const getBookedSlots = async (
+  station_id,
+  booking_date
+) => {
+  const result = await pool.query(
+    `
+    SELECT
+      id,
+      start_time,
+      end_time,
+      status
+    FROM bookings
+    WHERE station_id = $1
+      AND booking_date = $2
+      AND status != 'Cancelled'
+    ORDER BY start_time ASC
+    `,
+    [
+      station_id,
+      booking_date,
+    ]
+  );
+
+  return result.rows;
+};
+
+// ==========================================
+// CANCEL BOOKING
+// ==========================================
 const cancelBooking = async (booking_id) => {
   const result = await pool.query(
     `
@@ -95,5 +178,6 @@ module.exports = {
   createBooking,
   getUserBookings,
   getBookingById,
+  getBookedSlots,
   cancelBooking,
 };

@@ -1,13 +1,19 @@
 const isAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
+      success: false,
       message: "Unauthorized",
     });
   }
 
-  if (req.user.role !== "admin") {
+  // Allow both admin and owner
+  if (
+    req.user.role !== "admin" &&
+    req.user.role !== "owner"
+  ) {
     return res.status(403).json({
-      message: "Access denied. Admins only.",
+      success: false,
+      message: "Access denied.",
     });
   }
 

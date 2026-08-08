@@ -15,7 +15,12 @@ const welcomeEmail = require("../templates/welcomeEmail");
 // Register
 // =======================
 const register = asyncHandler(async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const {
+    name,
+    email,
+    password,
+    role,
+  } = req.body;
 
   // Check if user already exists
   const existingUser = await findUserByEmail(email);
@@ -38,7 +43,7 @@ const register = asyncHandler(async (req, res) => {
     role || "user"
   );
 
-  // Send Welcome Email
+  // Send welcome email
   await sendEmail(
     email,
     "Welcome to EV Charging App 🚗⚡",
@@ -48,7 +53,12 @@ const register = asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     message: "User registered successfully",
-    user,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
   });
 });
 
@@ -56,7 +66,10 @@ const register = asyncHandler(async (req, res) => {
 // Login
 // =======================
 const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const {
+    email,
+    password,
+  } = req.body;
 
   // Check if user exists
   const user = await findUserByEmail(email);
@@ -69,7 +82,10 @@ const login = asyncHandler(async (req, res) => {
   }
 
   // Compare password
-  const isMatch = await bcrypt.compare(password, user.password);
+  const isMatch = await bcrypt.compare(
+    password,
+    user.password
+  );
 
   if (!isMatch) {
     return res.status(401).json({
@@ -90,10 +106,19 @@ const login = asyncHandler(async (req, res) => {
     }
   );
 
+  // Never send password to frontend
   res.status(200).json({
     success: true,
     message: "Login successful",
+
     token,
+
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
   });
 });
 
