@@ -3,47 +3,31 @@ const express = require("express");
 const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
-const validateRequest = require("../middleware/validateRequest");
 
 const {
-  myProfile,
-  editProfile,
+  getMyProfile,
+  updateMyProfile,
   changePassword,
 } = require("../controllers/profileController");
 
-const {
-  updateProfileValidation,
-  changePasswordValidation,
-} = require("../validation/profileValidation");
-
-// =======================
-// Get My Profile
-// =======================
+// GET /api/profile
 router.get(
   "/",
   authMiddleware,
-  myProfile
+  getMyProfile
 );
 
-// =======================
-// Update Profile
-// =======================
+// PUT /api/profile
 router.put(
   "/",
   authMiddleware,
-  updateProfileValidation,
-  validateRequest,
-  editProfile
+  updateMyProfile
 );
 
-// =======================
-// Change Password
-// =======================
+// PUT /api/profile/password
 router.put(
-  "/change-password",
+  "/password",
   authMiddleware,
-  changePasswordValidation,
-  validateRequest,
   changePassword
 );
 

@@ -3,41 +3,30 @@ const express = require("express");
 const router = express.Router();
 
 const {
-  add,
-  getAll,
-  remove,
-} = require("../controllers/favoriteController");
+  createPaymentOrder,
+  verifyPayment,
+} = require("../controllers/paymentController");
 
 const authMiddleware = require("../middleware/authMiddleware");
 
 // ==========================================
-// ADD FAVORITE
-// POST /api/favorites
+// CREATE RAZORPAY ORDER
+// POST /api/payments/create-order
 // ==========================================
 router.post(
-  "/",
+  "/create-order",
   authMiddleware,
-  add
+  createPaymentOrder
 );
 
 // ==========================================
-// GET MY FAVORITES
-// GET /api/favorites/:user_id
+// VERIFY RAZORPAY PAYMENT
+// POST /api/payments/verify
 // ==========================================
-router.get(
-  "/:user_id",
+router.post(
+  "/verify",
   authMiddleware,
-  getAll
-);
-
-// ==========================================
-// REMOVE FAVORITE
-// DELETE /api/favorites
-// ==========================================
-router.delete(
-  "/",
-  authMiddleware,
-  remove
+  verifyPayment
 );
 
 module.exports = router;

@@ -5,140 +5,129 @@ const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 
 const {
-  getAllStations,
-  getNearbyStations,
-  recommendStations,
-  getOwnerStations,
-  getMyStations,
-  getStationById,
-  addStation,
-  updateStation,
-  deleteStation,
-} = require("../controllers/stationController");
+  addVehicle,
+  myVehicles,
+  getVehicle,
+  editVehicle,
+  changeBattery,
+  changeChargingThreshold,
+  checkChargingAlert,
+  vehicleTelemetry,
+  removeVehicle,
+} = require("../controllers/vehicleController");
 
 // ======================================================
 // AUTHENTICATION
+// ======================================================
+//
+// Every vehicle endpoint requires a logged-in user.
 // ======================================================
 
 router.use(authMiddleware);
 
 // ======================================================
-// GET ALL STATIONS
-// GET /api/stations
-// ======================================================
-
-router.get(
-  "/",
-  getAllStations
-);
-
-// ======================================================
-// GET NEARBY REAL EV STATIONS
-// GET /api/stations/nearby
-// ======================================================
-//
-// Uses OpenStreetMap + Overpass.
-//
-// IMPORTANT:
-// Must come before /:id.
-//
-
-router.get(
-  "/nearby",
-  getNearbyStations
-);
-
-// ======================================================
-// INTELLIGENT STATION RECOMMENDATION
-// GET /api/stations/recommend/:vehicleId
-// ======================================================
-//
-// Example:
-//
-// /api/stations/recommend/1
-// ?latitude=26.2061985
-// &longitude=78.1904335
-//
-// Uses the vehicle's battery/charging information
-// and location to recommend a suitable station.
-//
-// IMPORTANT:
-// This MUST come before /:id.
-//
-
-router.get(
-  "/recommend/:vehicleId",
-  recommendStations
-);
-
-// ======================================================
-// GET CURRENT OWNER'S STATIONS
-// GET /api/stations/owner/my
-// ======================================================
-
-router.get(
-  "/owner/my",
-  getMyStations
-);
-
-// ======================================================
-// GET STATIONS BY OWNER
-// GET /api/stations/owner/:ownerId
-// ======================================================
-
-router.get(
-  "/owner/:ownerId",
-  getOwnerStations
-);
-
-// ======================================================
-// ADD STATION
-// POST /api/stations
+// CREATE VEHICLE
+// POST /api/vehicles
 // ======================================================
 
 router.post(
   "/",
-  addStation
+  addVehicle
 );
 
 // ======================================================
-// UPDATE STATION
-// PUT /api/stations/:id
+// GET MY VEHICLES
+// GET /api/vehicles
+// ======================================================
+
+router.get(
+  "/",
+  myVehicles
+);
+
+// ======================================================
+// GET VEHICLE TELEMETRY
+// GET /api/vehicles/:id/telemetry
+// ======================================================
+//
+// IMPORTANT:
+// This must be BEFORE /:id.
+// ======================================================
+
+router.get(
+  "/:id/telemetry",
+  vehicleTelemetry
+);
+
+// ======================================================
+// UPDATE BATTERY
+// PUT /api/vehicles/:id/battery
+// ======================================================
+
+router.put(
+  "/:id/battery",
+  changeBattery
+);
+
+// ======================================================
+// UPDATE CHARGING THRESHOLD
+// PUT /api/vehicles/:id/charging-threshold
+// ======================================================
+//
+// Example body:
+//
+// {
+//   "charging_threshold": 20
+// }
+// ======================================================
+
+router.put(
+  "/:id/charging-threshold",
+  changeChargingThreshold
+);
+
+// ======================================================
+// CHECK CHARGING ALERT
+// GET /api/vehicles/:id/charging-alert
+// ======================================================
+//
+// Returns whether the current battery has reached
+// the user's configured charging threshold.
+// ======================================================
+
+router.get(
+  "/:id/charging-alert",
+  checkChargingAlert
+);
+
+// ======================================================
+// UPDATE VEHICLE
+// PUT /api/vehicles/:id
 // ======================================================
 
 router.put(
   "/:id",
-  updateStation
+  editVehicle
 );
 
 // ======================================================
-// GET SINGLE STATION
-// GET /api/stations/:id
-// ======================================================
-//
-// IMPORTANT:
-// Keep this AFTER:
-//
-// /nearby
-// /recommend/:vehicleId
-// /owner/my
-// /owner/:ownerId
-//
+// GET SINGLE VEHICLE
+// GET /api/vehicles/:id
 // ======================================================
 
 router.get(
   "/:id",
-  getStationById
+  getVehicle
 );
 
 // ======================================================
-// DELETE STATION
-// DELETE /api/stations/:id
+// DELETE VEHICLE
+// DELETE /api/vehicles/:id
 // ======================================================
 
 router.delete(
   "/:id",
-  deleteStation
+  removeVehicle
 );
 
 // ======================================================

@@ -6,12 +6,17 @@ const {
   getBookingById,
   getBookedSlots,
   cancelBooking,
+  expirePendingBookings,
 } = require("../models/bookingModel");
 
-// ==========================================
+// ======================================================
 // CREATE BOOKING
 // POST /api/bookings
-// ==========================================
+//
+// IMPORTANT:
+// Booking/payment should normally go through Razorpay.
+// This endpoint is kept for compatibility.
+// ======================================================
 const bookStation = asyncHandler(async (req, res) => {
   const {
     station_id,
@@ -20,8 +25,23 @@ const bookStation = asyncHandler(async (req, res) => {
     end_time,
   } = req.body;
 
-  // Get user ID from verified JWT
   const user_id = req.user.id;
+
+  if (
+    !station_id ||
+    !booking_date ||
+    !start_time ||
+    !end_time
+  ) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Station, date and time are required.",
+    });
+  }
+
+  // Remove old unpaid holds first
+  await expirePendingBookings();
 
   const booking = await createBooking(
     user_id,
@@ -38,22 +58,30 @@ const bookStation = asyncHandler(async (req, res) => {
   });
 });
 
-// ==========================================
+// ======================================================
 // GET USER BOOKINGS
 // GET /api/bookings/user/:user_id
-// ==========================================
+// ======================================================
 const myBookings = asyncHandler(async (req, res) => {
   const { user_id } = req.params;
 
-  // Only allow users to access their own bookings
-  if (Number(user_id) !== Number(req.user.id)) {
+  // User can only see their own bookings
+  if (
+    Number(user_id) !==
+    Number(req.user.id)
+  ) {
     return res.status(403).json({
       success: false,
-      message: "You can only access your own bookings.",
+      message:
+        "You can only access your own bookings.",
     });
   }
 
-  const bookings = await getUserBookings(user_id);
+  // Expire old pending payments
+  await expirePendingBookings();
+
+  const bookings =
+    await getUserBookings(user_id);
 
   res.status(200).json({
     success: true,
@@ -62,14 +90,15 @@ const myBookings = asyncHandler(async (req, res) => {
   });
 });
 
-// ==========================================
+// ======================================================
 // GET SINGLE BOOKING
 // GET /api/bookings/:id
-// ==========================================
+// ======================================================
 const getBooking = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const booking = await getBookingById(id);
+  const booking =
+    await getBookingById(id);
 
   if (!booking) {
     return res.status(404).json({
@@ -78,8 +107,11 @@ const getBooking = asyncHandler(async (req, res) => {
     });
   }
 
-  // Only booking owner can view it
-  if (Number(booking.user_id) !== Number(req.user.id)) {
+  // Only owner can view
+  if (
+    Number(booking.user_id) !==
+    Number(req.user.id)
+  ) {
     return res.status(403).json({
       success: false,
       message: "Access denied.",
@@ -92,11 +124,10 @@ const getBooking = asyncHandler(async (req, res) => {
   });
 });
 
-// ==========================================
+// ======================================================
 // GET BOOKED SLOTS
-//
 // GET /api/bookings/slots/:stationId?date=YYYY-MM-DD
-// ==========================================
+// ======================================================
 const bookedSlots = asyncHandler(async (req, res) => {
   const { stationId } = req.params;
   const { date } = req.query;
@@ -107,6 +138,9 @@ const bookedSlots = asyncHandler(async (req, res) => {
       message: "Booking date is required.",
     });
   }
+
+  // Expire old pending payments
+  await expirePendingBookings();
 
   const slots = await getBookedSlots(
     stationId,
@@ -121,14 +155,15 @@ const bookedSlots = asyncHandler(async (req, res) => {
   });
 });
 
-// ==========================================
+// ======================================================
 // CANCEL BOOKING
 // PUT /api/bookings/:id/cancel
-// ==========================================
+// ======================================================
 const removeBooking = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const booking = await getBookingById(id);
+  const booking =
+    await getBookingById(id);
 
   if (!booking) {
     return res.status(404).json({
@@ -137,19 +172,33 @@ const removeBooking = asyncHandler(async (req, res) => {
     });
   }
 
-  // Only booking owner can cancel
-  if (Number(booking.user_id) !== Number(req.user.id)) {
+  // Only owner can cancel
+  if (
+    Number(booking.user_id) !==
+    Number(req.user.id)
+  ) {
     return res.status(403).json({
       success: false,
-      message: "You can only cancel your own booking.",
+      message:
+        "You can only cancel your own booking.",
     });
   }
 
-  const cancelledBooking = await cancelBooking(id);
+  if (booking.status === "Cancelled") {
+    return res.status(400).json({
+      success: false,
+      message:
+        "This booking is already cancelled.",
+    });
+  }
+
+  const cancelledBooking =
+    await cancelBooking(id);
 
   res.status(200).json({
     success: true,
-    message: "Booking cancelled successfully.",
+    message:
+      "Booking cancelled successfully.",
     data: cancelledBooking,
   });
 });

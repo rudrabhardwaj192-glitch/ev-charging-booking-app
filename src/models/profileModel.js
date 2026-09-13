@@ -1,8 +1,8 @@
 const pool = require("../config/db");
 
-// =======================
-// Get User Profile
-// =======================
+// ==========================================
+// GET MY PROFILE
+// ==========================================
 const getProfile = async (userId) => {
   const result = await pool.query(
     `
@@ -18,13 +18,17 @@ const getProfile = async (userId) => {
     [userId]
   );
 
-  return result.rows[0];
+  return result.rows[0] || null;
 };
 
-// =======================
-// Update Profile
-// =======================
-const updateProfile = async (userId, name, email) => {
+// ==========================================
+// UPDATE PROFILE
+// ==========================================
+const updateProfile = async (
+  userId,
+  name,
+  email
+) => {
   const result = await pool.query(
     `
     UPDATE users
@@ -39,13 +43,65 @@ const updateProfile = async (userId, name, email) => {
       role,
       created_at
     `,
-    [name, email, userId]
+    [
+      name,
+      email,
+      userId,
+    ]
   );
 
-  return result.rows[0];
+  return result.rows[0] || null;
+};
+
+// ==========================================
+// GET USER PASSWORD
+// ==========================================
+const getUserPassword = async (userId) => {
+  const result = await pool.query(
+    `
+    SELECT
+      id,
+      password
+    FROM users
+    WHERE id = $1
+    `,
+    [userId]
+  );
+
+  return result.rows[0] || null;
+};
+
+// ==========================================
+// UPDATE PASSWORD
+// ==========================================
+const updatePassword = async (
+  userId,
+  hashedPassword
+) => {
+  const result = await pool.query(
+    `
+    UPDATE users
+    SET password = $1
+    WHERE id = $2
+    RETURNING
+      id,
+      name,
+      email,
+      role,
+      created_at
+    `,
+    [
+      hashedPassword,
+      userId,
+    ]
+  );
+
+  return result.rows[0] || null;
 };
 
 module.exports = {
   getProfile,
   updateProfile,
+  getUserPassword,
+  updatePassword,
 };
