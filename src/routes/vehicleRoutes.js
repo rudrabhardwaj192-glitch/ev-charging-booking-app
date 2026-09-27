@@ -10,8 +10,6 @@ const {
   getVehicle,
   editVehicle,
   changeBattery,
-  changeChargingThreshold,
-  checkChargingAlert,
   vehicleTelemetry,
   removeVehicle,
 } = require("../controllers/vehicleController");
@@ -21,7 +19,7 @@ const {
 // ======================================================
 //
 // Every vehicle endpoint requires a logged-in user.
-// ======================================================
+//
 
 router.use(authMiddleware);
 
@@ -52,7 +50,7 @@ router.get(
 //
 // IMPORTANT:
 // This must be BEFORE /:id.
-// ======================================================
+//
 
 router.get(
   "/:id/telemetry",
@@ -67,37 +65,6 @@ router.get(
 router.put(
   "/:id/battery",
   changeBattery
-);
-
-// ======================================================
-// UPDATE CHARGING THRESHOLD
-// PUT /api/vehicles/:id/charging-threshold
-// ======================================================
-//
-// Example body:
-//
-// {
-//   "charging_threshold": 20
-// }
-// ======================================================
-
-router.put(
-  "/:id/charging-threshold",
-  changeChargingThreshold
-);
-
-// ======================================================
-// CHECK CHARGING ALERT
-// GET /api/vehicles/:id/charging-alert
-// ======================================================
-//
-// Returns whether the current battery has reached
-// the user's configured charging threshold.
-// ======================================================
-
-router.get(
-  "/:id/charging-alert",
-  checkChargingAlert
 );
 
 // ======================================================

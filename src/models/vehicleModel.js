@@ -18,7 +18,6 @@ const createVehicle = async (
     estimated_range,
     connector_type,
     max_charging_power,
-    charging_threshold,
   } = vehicleData;
 
   const result = await pool.query(
@@ -34,8 +33,7 @@ const createVehicle = async (
       current_battery,
       estimated_range,
       connector_type,
-      max_charging_power,
-      charging_threshold
+      max_charging_power
     )
     VALUES
     (
@@ -48,8 +46,7 @@ const createVehicle = async (
       $7,
       $8,
       $9,
-      $10,
-      $11
+      $10
     )
     RETURNING *
     `,
@@ -64,7 +61,6 @@ const createVehicle = async (
       estimated_range || null,
       connector_type || null,
       max_charging_power || null,
-      charging_threshold ?? 20,
     ]
   );
 
@@ -104,10 +100,7 @@ const getVehicleById = async (
     WHERE id = $1
       AND user_id = $2
     `,
-    [
-      vehicleId,
-      userId,
-    ]
+    [vehicleId, userId]
   );
 
   return result.rows[0] || null;
@@ -132,7 +125,6 @@ const updateVehicle = async (
     estimated_range,
     connector_type,
     max_charging_power,
-    charging_threshold,
   } = vehicleData;
 
   const result = await pool.query(
@@ -148,10 +140,9 @@ const updateVehicle = async (
       estimated_range = $7,
       connector_type = $8,
       max_charging_power = $9,
-      charging_threshold = $10,
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = $11
-      AND user_id = $12
+    WHERE id = $10
+      AND user_id = $11
     RETURNING *
     `,
     [
@@ -164,7 +155,6 @@ const updateVehicle = async (
       estimated_range || null,
       connector_type || null,
       max_charging_power || null,
-      charging_threshold ?? 20,
       vehicleId,
       userId,
     ]
@@ -206,67 +196,6 @@ const updateBattery = async (
 };
 
 // ======================================================
-// UPDATE CHARGING THRESHOLD
-// ======================================================
-
-const updateChargingThreshold = async (
-  vehicleId,
-  userId,
-  chargingThreshold
-) => {
-  const result = await pool.query(
-    `
-    UPDATE vehicles
-    SET
-      charging_threshold = $1,
-      updated_at = CURRENT_TIMESTAMP
-    WHERE id = $2
-      AND user_id = $3
-    RETURNING *
-    `,
-    [
-      chargingThreshold,
-      vehicleId,
-      userId,
-    ]
-  );
-
-  return result.rows[0] || null;
-};
-
-// ======================================================
-// GET CHARGING THRESHOLD
-// ======================================================
-
-const getChargingThreshold = async (
-  vehicleId,
-  userId
-) => {
-  const result = await pool.query(
-    `
-    SELECT
-      id,
-      brand,
-      model,
-      current_battery,
-      estimated_range,
-      connector_type,
-      max_charging_power,
-      charging_threshold
-    FROM vehicles
-    WHERE id = $1
-      AND user_id = $2
-    `,
-    [
-      vehicleId,
-      userId,
-    ]
-  );
-
-  return result.rows[0] || null;
-};
-
-// ======================================================
 // DELETE VEHICLE
 // ======================================================
 
@@ -281,10 +210,7 @@ const deleteVehicle = async (
       AND user_id = $2
     RETURNING *
     `,
-    [
-      vehicleId,
-      userId,
-    ]
+    [vehicleId, userId]
   );
 
   return result.rows[0] || null;
@@ -300,7 +226,5 @@ module.exports = {
   getVehicleById,
   updateVehicle,
   updateBattery,
-  updateChargingThreshold,
-  getChargingThreshold,
   deleteVehicle,
 };
