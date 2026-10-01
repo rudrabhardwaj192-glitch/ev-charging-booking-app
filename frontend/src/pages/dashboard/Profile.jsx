@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 import {
   FaUser,
@@ -9,14 +10,19 @@ import {
   FaSave,
   FaSignOutAlt,
   FaTimes,
+  FaIdCard,
+  FaCalendarAlt,
+  FaShieldAlt,
 } from "react-icons/fa";
-
-import toast from "react-hot-toast";
 
 import api from "../../services/api";
 
 function Profile() {
   const navigate = useNavigate();
+
+  // ==========================================
+  // STATE
+  // ==========================================
 
   const [profile, setProfile] = useState(null);
 
@@ -30,18 +36,16 @@ function Profile() {
     email: "",
   });
 
-  const [passwordData, setPasswordData] =
-    useState({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
 
-  const [showPassword, setShowPassword] =
+  const [showPasswordSection, setShowPasswordSection] =
     useState(false);
 
-  const token =
-    localStorage.getItem("token");
+  const token = localStorage.getItem("token");
 
   // ==========================================
   // LOAD PROFILE
@@ -58,17 +62,15 @@ function Profile() {
         return;
       }
 
-      const response = await api.get(
-        "/profile",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      setLoading(true);
 
-      const user =
-        response.data.data;
+      const response = await api.get("/profile", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const user = response.data.data;
 
       setProfile(user);
 
@@ -77,11 +79,11 @@ function Profile() {
         email: user.email || "",
       });
     } catch (error) {
-      console.error(error);
+      console.error("Profile loading error:", error);
 
       toast.error(
         error.response?.data?.message ||
-          "Failed to load profile"
+          "Unable to load profile."
       );
     } finally {
       setLoading(false);
@@ -89,14 +91,11 @@ function Profile() {
   };
 
   // ==========================================
-  // INPUT CHANGE
+  // INPUT HANDLER
   // ==========================================
 
   const handleChange = (e) => {
-    const {
-      name,
-      value,
-    } = e.target;
+    const { name, value } = e.target;
 
     setFormData((previous) => ({
       ...previous,
@@ -105,14 +104,11 @@ function Profile() {
   };
 
   // ==========================================
-  // PASSWORD CHANGE
+  // PASSWORD INPUT HANDLER
   // ==========================================
 
   const handlePasswordChange = (e) => {
-    const {
-      name,
-      value,
-    } = e.target;
+    const { name, value } = e.target;
 
     setPasswordData((previous) => ({
       ...previous,
@@ -121,58 +117,57 @@ function Profile() {
   };
 
   // ==========================================
-  // SAVE PROFILE
+  // UPDATE PROFILE
   // ==========================================
 
   const handleSaveProfile = async () => {
     try {
       if (!formData.name.trim()) {
-        toast.error("Name is required");
+        toast.error("Name is required.");
         return;
       }
 
       if (!formData.email.trim()) {
-        toast.error("Email is required");
+        toast.error("Email is required.");
         return;
       }
 
       setSaving(true);
 
-      const response =
-        await api.put(
-          "/profile",
-          {
-            name: formData.name.trim(),
-            email: formData.email.trim(),
+      const response = await api.put(
+        "/profile",
+        {
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
           },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        }
+      );
 
-      const updated =
-        response.data.data;
+      const updatedUser = response.data.data;
 
-      setProfile(updated);
+      setProfile(updatedUser);
 
       setFormData({
-        name: updated.name,
-        email: updated.email,
+        name: updatedUser.name || "",
+        email: updatedUser.email || "",
       });
 
       setEditing(false);
 
       toast.success(
-        "Profile updated successfully"
+        response.data.message ||
+          "Profile updated successfully."
       );
     } catch (error) {
-      console.error(error);
+      console.error("Profile update error:", error);
 
       toast.error(
         error.response?.data?.message ||
-          "Failed to update profile"
+          "Failed to update profile."
       );
     } finally {
       setSaving(false);
@@ -180,87 +175,101 @@ function Profile() {
   };
 
   // ==========================================
+  // CANCEL EDIT
+  // ==========================================
+
+  const handleCancelEdit = () => {
+    setEditing(false);
+
+    setFormData({
+      name: profile.name || "",
+      email: profile.email || "",
+    });
+  };
+
+  // ==========================================
   // CHANGE PASSWORD
   // ==========================================
 
-  const handleChangePassword =
-    async () => {
-      try {
-        if (
-          !passwordData.currentPassword ||
-          !passwordData.newPassword ||
-          !passwordData.confirmPassword
-        ) {
-          toast.error(
-            "Please fill all password fields"
-          );
-
-          return;
-        }
-
-        if (
-          passwordData.newPassword !==
-          passwordData.confirmPassword
-        ) {
-          toast.error(
-            "Passwords do not match"
-          );
-
-          return;
-        }
-
-        if (
-          passwordData.newPassword.length < 6
-        ) {
-          toast.error(
-            "Password must be at least 6 characters"
-          );
-
-          return;
-        }
-
-        setSaving(true);
-
-        const response =
-          await api.put(
-            "/profile/password",
-            {
-              currentPassword:
-                passwordData.currentPassword,
-
-              newPassword:
-                passwordData.newPassword,
-            },
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-
-        toast.success(
-          response.data.message ||
-            "Password changed successfully"
-        );
-
-        setPasswordData({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: "",
-        });
-
-        setShowPassword(false);
-      } catch (error) {
-        console.error(error);
-
+  const handleChangePassword = async () => {
+    try {
+      if (
+        !passwordData.currentPassword ||
+        !passwordData.newPassword ||
+        !passwordData.confirmPassword
+      ) {
         toast.error(
-          error.response?.data?.message ||
-            "Failed to change password"
+          "Please fill all password fields."
         );
-      } finally {
-        setSaving(false);
+
+        return;
       }
-    };
+
+      if (
+        passwordData.newPassword !==
+        passwordData.confirmPassword
+      ) {
+        toast.error(
+          "New password and confirm password do not match."
+        );
+
+        return;
+      }
+
+      if (
+        passwordData.newPassword.length < 6
+      ) {
+        toast.error(
+          "New password must be at least 6 characters."
+        );
+
+        return;
+      }
+
+      setSaving(true);
+
+      const response = await api.put(
+        "/profile/password",
+        {
+          currentPassword:
+            passwordData.currentPassword,
+
+          newPassword:
+            passwordData.newPassword,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      toast.success(
+        response.data.message ||
+          "Password changed successfully."
+      );
+
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+
+      setShowPasswordSection(false);
+    } catch (error) {
+      console.error(
+        "Password change error:",
+        error
+      );
+
+      toast.error(
+        error.response?.data?.message ||
+          "Failed to change password."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // ==========================================
   // LOGOUT
@@ -270,7 +279,7 @@ function Profile() {
     localStorage.removeItem("token");
 
     toast.success(
-      "Logged out successfully"
+      "Logged out successfully."
     );
 
     setTimeout(() => {
@@ -284,17 +293,23 @@ function Profile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="bg-white p-8 rounded-2xl shadow">
-          Loading profile...
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow p-8">
+          <p className="text-lg font-semibold">
+            Loading profile...
+          </p>
         </div>
       </div>
     );
   }
 
+  // ==========================================
+  // NO PROFILE
+  // ==========================================
+
   if (!profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">
             Profile not found
@@ -304,29 +319,35 @@ function Profile() {
             onClick={() =>
               navigate("/dashboard")
             }
-            className="bg-blue-600 text-white px-6 py-3 rounded-xl"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl"
           >
-            Dashboard
+            Back to Dashboard
           </button>
         </div>
       </div>
     );
   }
 
+  // ==========================================
+  // PROFILE PAGE
+  // ==========================================
+
   return (
     <div className="min-h-screen bg-gray-100 p-6 md:p-10">
 
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
 
         {/* ================================= */}
         {/* PROFILE HEADER */}
         {/* ================================= */}
 
-        <div className="bg-white rounded-3xl shadow p-8 mb-6">
+        <div className="bg-white rounded-3xl shadow-md p-8 mb-6">
 
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
 
             <div className="flex items-center gap-5">
+
+              {/* Avatar */}
 
               <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
 
@@ -334,52 +355,58 @@ function Profile() {
 
               </div>
 
+              {/* Name / Email */}
+
               <div>
 
                 <h1 className="text-3xl font-bold">
-                  {profile.name}
+                  {profile.name || "User"}
                 </h1>
 
-                <p className="text-gray-500">
+                <p className="text-gray-500 mt-1">
                   {profile.email}
                 </p>
 
-                <span className="inline-block mt-2 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold capitalize">
-                  {profile.role}
-                </span>
+                <div className="mt-3">
+
+                  <span className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold capitalize">
+                    <FaShieldAlt />
+                    {profile.role || "user"}
+                  </span>
+
+                </div>
 
               </div>
 
             </div>
 
-            {!editing ? (
-              <button
-                onClick={() =>
-                  setEditing(true)
-                }
-                className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl flex items-center justify-center gap-2"
-              >
-                <FaEdit />
-                Edit Profile
-              </button>
-            ) : (
-              <button
-                onClick={() => {
-                  setEditing(false);
+            {/* Edit / Cancel */}
 
-                  setFormData({
-                    name:
-                      profile.name,
-                    email:
-                      profile.email,
-                  });
-                }}
-                className="bg-gray-500 text-white px-5 py-3 rounded-xl flex items-center justify-center gap-2"
-              >
-                <FaTimes />
-                Cancel
-              </button>
-            )}
+            <div>
+
+              {!editing ? (
+                <button
+                  onClick={() =>
+                    setEditing(true)
+                  }
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl flex items-center gap-2 font-semibold"
+                >
+                  <FaEdit />
+                  Edit Profile
+                </button>
+              ) : (
+                <button
+                  onClick={
+                    handleCancelEdit
+                  }
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-5 py-3 rounded-xl flex items-center gap-2 font-semibold"
+                >
+                  <FaTimes />
+                  Cancel
+                </button>
+              )}
+
+            </div>
 
           </div>
 
@@ -389,13 +416,13 @@ function Profile() {
         {/* PERSONAL INFORMATION */}
         {/* ================================= */}
 
-        <div className="bg-white rounded-3xl shadow p-8 mb-6">
+        <div className="bg-white rounded-3xl shadow-md p-8 mb-6">
 
           <h2 className="text-2xl font-bold mb-8">
             Personal Information
           </h2>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* NAME */}
 
@@ -410,15 +437,12 @@ function Profile() {
                 <FaUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
 
                 <input
+                  type="text"
                   name="name"
-                  value={
-                    formData.name
-                  }
-                  onChange={
-                    handleChange
-                  }
+                  value={formData.name}
+                  onChange={handleChange}
                   disabled={!editing}
-                  className="w-full border rounded-xl py-3 pl-11 pr-4 disabled:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border rounded-xl py-3 pl-11 pr-4 disabled:bg-gray-100 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
 
               </div>
@@ -430,7 +454,7 @@ function Profile() {
             <div>
 
               <label className="block font-semibold mb-2">
-                Email
+                Email Address
               </label>
 
               <div className="relative">
@@ -440,14 +464,10 @@ function Profile() {
                 <input
                   type="email"
                   name="email"
-                  value={
-                    formData.email
-                  }
-                  onChange={
-                    handleChange
-                  }
+                  value={formData.email}
+                  onChange={handleChange}
                   disabled={!editing}
-                  className="w-full border rounded-xl py-3 pl-11 pr-4 disabled:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full border rounded-xl py-3 pl-11 pr-4 disabled:bg-gray-100 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
 
               </div>
@@ -456,21 +476,25 @@ function Profile() {
 
           </div>
 
+          {/* SAVE BUTTON */}
+
           {editing && (
-            <div className="flex justify-end mt-8">
+            <div className="mt-8 flex justify-end">
 
               <button
                 onClick={
                   handleSaveProfile
                 }
                 disabled={saving}
-                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-7 py-3 rounded-xl flex items-center gap-2"
+                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-7 py-3 rounded-xl flex items-center gap-2 font-semibold"
               >
+
                 <FaSave />
 
                 {saving
                   ? "Saving..."
                   : "Save Changes"}
+
               </button>
 
             </div>
@@ -482,55 +506,83 @@ function Profile() {
         {/* ACCOUNT INFORMATION */}
         {/* ================================= */}
 
-        <div className="bg-white rounded-3xl shadow p-8 mb-6">
+        <div className="bg-white rounded-3xl shadow-md p-8 mb-6">
 
-          <h2 className="text-2xl font-bold mb-6">
+          <h2 className="text-2xl font-bold mb-8">
             Account Information
           </h2>
 
-          <div className="grid md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-            <div className="bg-gray-50 p-5 rounded-2xl">
+            {/* ACCOUNT ID */}
 
-              <p className="text-gray-500 text-sm">
-                Account ID
-              </p>
+            <div className="bg-gray-50 rounded-2xl p-5">
 
-              <p className="font-bold text-lg">
+              <div className="flex items-center gap-3 mb-2">
+
+                <FaIdCard className="text-blue-600" />
+
+                <p className="text-gray-500 text-sm">
+                  Account ID
+                </p>
+
+              </div>
+
+              <p className="text-xl font-bold">
                 #{profile.id}
               </p>
 
             </div>
 
-            <div className="bg-gray-50 p-5 rounded-2xl">
+            {/* ROLE */}
 
-              <p className="text-gray-500 text-sm">
-                Account Type
-              </p>
+            <div className="bg-gray-50 rounded-2xl p-5">
 
-              <p className="font-bold text-lg capitalize">
-                {profile.role}
+              <div className="flex items-center gap-3 mb-2">
+
+                <FaShieldAlt className="text-green-600" />
+
+                <p className="text-gray-500 text-sm">
+                  Account Type
+                </p>
+
+              </div>
+
+              <p className="text-xl font-bold capitalize">
+                {profile.role || "user"}
               </p>
 
             </div>
 
-            <div className="bg-gray-50 p-5 rounded-2xl md:col-span-2">
+            {/* CREATED DATE */}
 
-              <p className="text-gray-500 text-sm">
-                Account Created
-              </p>
+            <div className="bg-gray-50 rounded-2xl p-5 md:col-span-2">
 
-              <p className="font-bold text-lg">
-                {new Date(
-                  profile.created_at
-                ).toLocaleDateString(
-                  "en-IN",
-                  {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  }
-                )}
+              <div className="flex items-center gap-3 mb-2">
+
+                <FaCalendarAlt className="text-purple-600" />
+
+                <p className="text-gray-500 text-sm">
+                  Account Created
+                </p>
+
+              </div>
+
+              <p className="text-xl font-bold">
+
+                {profile.created_at
+                  ? new Date(
+                      profile.created_at
+                    ).toLocaleDateString(
+                      "en-IN",
+                      {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      }
+                    )
+                  : "Not available"}
+
               </p>
 
             </div>
@@ -540,18 +592,18 @@ function Profile() {
         </div>
 
         {/* ================================= */}
-        {/* PASSWORD */}
+        {/* PASSWORD & SECURITY */}
         {/* ================================= */}
 
-        <div className="bg-white rounded-3xl shadow p-8 mb-6">
+        <div className="bg-white rounded-3xl shadow-md p-8 mb-6">
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
 
             <div className="flex items-center gap-4">
 
-              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
 
-                <FaLock className="text-blue-600" />
+                <FaLock className="text-blue-600 text-xl" />
 
               </div>
 
@@ -562,7 +614,7 @@ function Profile() {
                 </h2>
 
                 <p className="text-gray-500">
-                  Change your account password.
+                  Keep your account secure.
                 </p>
 
               </div>
@@ -571,77 +623,115 @@ function Profile() {
 
             <button
               onClick={() =>
-                setShowPassword(
-                  !showPassword
+                setShowPasswordSection(
+                  !showPasswordSection
                 )
               }
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-semibold"
             >
-              {showPassword
+
+              {showPasswordSection
                 ? "Close"
                 : "Change Password"}
+
             </button>
 
           </div>
 
-          {showPassword && (
-            <div className="border-t mt-8 pt-8">
+          {/* PASSWORD FORM */}
 
-              <div className="space-y-5">
+          {showPasswordSection && (
+            <div className="mt-8 border-t pt-8">
 
-                <input
-                  type="password"
-                  name="currentPassword"
-                  placeholder="Current password"
-                  value={
-                    passwordData.currentPassword
-                  }
-                  onChange={
-                    handlePasswordChange
-                  }
-                  className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                <input
-                  type="password"
-                  name="newPassword"
-                  placeholder="New password"
-                  value={
-                    passwordData.newPassword
-                  }
-                  onChange={
-                    handlePasswordChange
-                  }
-                  className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                {/* CURRENT PASSWORD */}
 
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  placeholder="Confirm new password"
-                  value={
-                    passwordData.confirmPassword
-                  }
-                  onChange={
-                    handlePasswordChange
-                  }
-                  className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="md:col-span-2">
+
+                  <label className="block font-semibold mb-2">
+                    Current Password
+                  </label>
+
+                  <input
+                    type="password"
+                    name="currentPassword"
+                    value={
+                      passwordData.currentPassword
+                    }
+                    onChange={
+                      handlePasswordChange
+                    }
+                    placeholder="Enter current password"
+                    className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+
+                </div>
+
+                {/* NEW PASSWORD */}
+
+                <div>
+
+                  <label className="block font-semibold mb-2">
+                    New Password
+                  </label>
+
+                  <input
+                    type="password"
+                    name="newPassword"
+                    value={
+                      passwordData.newPassword
+                    }
+                    onChange={
+                      handlePasswordChange
+                    }
+                    placeholder="Enter new password"
+                    className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+
+                </div>
+
+                {/* CONFIRM PASSWORD */}
+
+                <div>
+
+                  <label className="block font-semibold mb-2">
+                    Confirm New Password
+                  </label>
+
+                  <input
+                    type="password"
+                    name="confirmPassword"
+                    value={
+                      passwordData.confirmPassword
+                    }
+                    onChange={
+                      handlePasswordChange
+                    }
+                    placeholder="Confirm new password"
+                    className="w-full border rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+
+                </div>
 
               </div>
 
-              <div className="flex justify-end mt-6">
+              {/* UPDATE PASSWORD */}
+
+              <div className="mt-6 flex justify-end">
 
                 <button
                   onClick={
                     handleChangePassword
                   }
                   disabled={saving}
-                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-7 py-3 rounded-xl"
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-7 py-3 rounded-xl font-semibold"
                 >
+
                   {saving
                     ? "Updating..."
                     : "Update Password"}
+
                 </button>
 
               </div>
@@ -655,7 +745,7 @@ function Profile() {
         {/* LOGOUT */}
         {/* ================================= */}
 
-        <div className="bg-white rounded-3xl shadow p-8">
+        <div className="bg-white rounded-3xl shadow-md p-8">
 
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
 
@@ -665,20 +755,21 @@ function Profile() {
                 Logout
               </h2>
 
-              <p className="text-gray-500">
-                Sign out from your account.
+              <p className="text-gray-500 mt-1">
+                Sign out of your EV Charging account.
               </p>
 
             </div>
 
             <button
-              onClick={
-                handleLogout
-              }
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2"
+              onClick={handleLogout}
+              className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-semibold"
             >
+
               <FaSignOutAlt />
+
               Logout
+
             </button>
 
           </div>

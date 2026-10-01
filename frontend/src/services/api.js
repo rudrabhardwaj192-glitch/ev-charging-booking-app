@@ -1,9 +1,5 @@
 import axios from "axios";
 
-// ======================================================
-// AXIOS API INSTANCE
-// ======================================================
-
 const api = axios.create({
   baseURL: "http://localhost:5000/api",
 
@@ -13,9 +9,7 @@ const api = axios.create({
 });
 
 // ======================================================
-// REQUEST INTERCEPTOR
-//
-// Automatically attach JWT token to every API request.
+// ADD AUTH TOKEN TO EVERY REQUEST
 // ======================================================
 
 api.interceptors.request.use(
@@ -37,9 +31,7 @@ api.interceptors.request.use(
 );
 
 // ======================================================
-// RESPONSE INTERCEPTOR
-//
-// Handle authentication errors globally.
+// HANDLE AUTHENTICATION ERRORS
 // ======================================================
 
 api.interceptors.response.use(
@@ -51,26 +43,14 @@ api.interceptors.response.use(
     if (
       error.response?.status === 401
     ) {
-      console.warn(
-        "Authentication expired or invalid."
+      console.error(
+        "Authentication failed:",
+        error.response?.data
       );
-
-      // Remove invalid token
-      localStorage.removeItem(
-        "token"
-      );
-
-      // Optional:
-      // We don't automatically redirect here
-      // because some pages may handle 401 themselves.
     }
 
     return Promise.reject(error);
   }
 );
-
-// ======================================================
-// EXPORT
-// ======================================================
 
 export default api;

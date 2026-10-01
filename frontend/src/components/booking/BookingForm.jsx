@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-
 import api from "../../services/api";
+import SlotPicker from "./SlotPicker";
 
-function BookingForm({ stationId }) {
+function BookingForm({
+  stationId,
+  stationPrice = 100,
+}) {
   const navigate = useNavigate();
 
   const [bookingDate, setBookingDate] =
@@ -22,16 +25,21 @@ function BookingForm({ stationId }) {
   const token =
     localStorage.getItem("token");
 
-  // ==================================================
-  // Load Razorpay script
-  // ==================================================
+  // =====================================================
+  // DISPLAY PRICE
+  // =====================================================
+
+  const amount =
+    Number(stationPrice) || 100;
+
+  // =====================================================
+  // LOAD RAZORPAY
+  // =====================================================
+
   const loadRazorpay = () => {
     return new Promise((resolve) => {
-      if (
-        document.getElementById(
-          "razorpay-script"
-        )
-      ) {
+      // Already loaded
+      if (window.Razorpay) {
         resolve(true);
         return;
       }
@@ -39,51 +47,31 @@ function BookingForm({ stationId }) {
       const script =
         document.createElement("script");
 
-      script.id =
-        "razorpay-script";
-
       script.src =
         "https://checkout.razorpay.com/v1/checkout.js";
 
-      script.onload = () =>
+      script.onload = () => {
         resolve(true);
+      };
 
-      script.onerror = () =>
+      script.onerror = () => {
         resolve(false);
+      };
 
-      document.body.appendChild(
-        script
-      );
+      document.body.appendChild(script);
     });
   };
 
-  // ==================================================
-  // Submit
-  // ==================================================
+  // =====================================================
+  // BOOK + PAYMENT
+  // =====================================================
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (
-      !bookingDate ||
-      !startTime ||
-      !endTime
-    ) {
-      toast.error(
-        "Please fill all fields."
-      );
-
-      return;
-    }
-
-    if (
-      endTime <= startTime
-    ) {
-      toast.error(
-        "End time must be after start time."
-      );
-
-      return;
-    }
+    // ===================================================
+    // LOGIN CHECK
+    // ===================================================
 
     if (!token) {
       toast.error(
@@ -95,32 +83,63 @@ function BookingForm({ stationId }) {
       return;
     }
 
+    // ===================================================
+    // VALIDATION
+    // ===================================================
+
+    if (!bookingDate) {
+      toast.error(
+        "Please select a booking date."
+      );
+
+      return;
+    }
+
+    if (!startTime || !endTime) {
+      toast.error(
+        "Please select an available charging slot."
+      );
+
+      return;
+    }
+
+    if (endTime <= startTime) {
+      toast.error(
+        "End time must be after start time."
+      );
+
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // ==================================================
-      // Load Razorpay
-      // ==================================================
-      const razorpayLoaded =
+      // =================================================
+      // LOAD RAZORPAY
+      // =================================================
+
+      const loaded =
         await loadRazorpay();
 
-      if (!razorpayLoaded) {
+      if (!loaded) {
         toast.error(
-          "Unable to load Razorpay."
+          "Razorpay could not be loaded."
         );
+
+        setLoading(false);
 
         return;
       }
 
-      // ==================================================
-      // Create Razorpay order
-      // ==================================================
-      const response =
+      // =================================================
+      // CREATE PAYMENT ORDER
+      // =================================================
+
+      const orderResponse =
         await api.post(
           "/payments/create-order",
           {
-            station_id:
-              stationId,
+            station_id: stationId,
 
             booking_date:
               bookingDate,
@@ -130,6 +149,10 @@ function BookingForm({ stationId }) {
 
             end_time:
               endTime,
+
+            // Backend calculates
+            // the actual amount.
+            amount: amount,
           },
           {
             headers: {
@@ -140,11 +163,12 @@ function BookingForm({ stationId }) {
         );
 
       const paymentData =
-        response.data.data;
+        orderResponse.data.data;
 
-      // ==================================================
-      // Razorpay checkout
-      // ==================================================
+      // =================================================
+      // RAZORPAY OPTIONS
+      // =================================================
+
       const options = {
         key:
           paymentData.key_id,
@@ -159,31 +183,59 @@ function BookingForm({ stationId }) {
           "EV Charging App",
 
         description:
-          "EV Charging Slot",
+          "EV Charging Station Booking",
 
         order_id:
           paymentData.order_id,
 
+        prefill: {
+          name: "",
+          email: "",
+          contact: "",
+        },
+
+        notes: {
+          station_id:
+            String(stationId),
+
+          booking_date:
+            bookingDate,
+
+          start_time:
+            startTime,
+
+          end_time:
+            endTime,
+        },
+
+        theme: {
+          color:
+            "#16a34a",
+        },
+
+        // =================================================
+        // PAYMENT SUCCESS
+        // =================================================
+
         handler:
-          async function (
-            razorpayResponse
-          ) {
+          async function (response) {
             try {
-              // ==========================================
-              // Verify payment
-              // ==========================================
+              // ===========================================
+              // VERIFY PAYMENT
+              // ===========================================
+
               const verifyResponse =
                 await api.post(
                   "/payments/verify",
                   {
                     razorpay_order_id:
-                      razorpayResponse.razorpay_order_id,
+                      response.razorpay_order_id,
 
                     razorpay_payment_id:
-                      razorpayResponse.razorpay_payment_id,
+                      response.razorpay_payment_id,
 
                     razorpay_signature:
-                      razorpayResponse.razorpay_signature,
+                      response.razorpay_signature,
                   },
                   {
                     headers: {
@@ -193,6 +245,10 @@ function BookingForm({ stationId }) {
                   }
                 );
 
+              // ===========================================
+              // VERIFICATION SUCCESS
+              // ===========================================
+
               if (
                 verifyResponse.data
                   .success
@@ -201,17 +257,15 @@ function BookingForm({ stationId }) {
                   "Payment successful! Booking confirmed."
                 );
 
-                setBookingDate(
-                  ""
-                );
+                // Clear form
 
-                setStartTime(
-                  ""
-                );
+                setBookingDate("");
 
-                setEndTime(
-                  ""
-                );
+                setStartTime("");
+
+                setEndTime("");
+
+                // Go to bookings
 
                 setTimeout(() => {
                   navigate(
@@ -230,150 +284,263 @@ function BookingForm({ stationId }) {
                   ?.message ||
                   "Payment verification failed."
               );
+
+              setLoading(false);
             }
           },
 
-        prefill: {
-          name: "",
-          email: "",
-          contact: "",
-        },
-
-        theme: {
-          color: "#16a34a",
-        },
+        // =================================================
+        // PAYMENT MODAL CLOSED
+        // =================================================
 
         modal: {
           ondismiss:
             function () {
+              setLoading(false);
+
               toast.error(
-                "Payment cancelled. Your slot will be released after 10 minutes."
+                "Payment cancelled."
               );
             },
         },
       };
+
+      // =================================================
+      // CREATE RAZORPAY INSTANCE
+      // =================================================
 
       const razorpay =
         new window.Razorpay(
           options
         );
 
+      // =================================================
+      // PAYMENT FAILED
+      // =================================================
+
       razorpay.on(
         "payment.failed",
-        function () {
-          toast.error(
-            "Payment failed. Please try again."
+        function (response) {
+          console.error(
+            "Payment failed:",
+            response.error
           );
+
+          toast.error(
+            response.error
+              ?.description ||
+              "Payment failed."
+          );
+
+          setLoading(false);
         }
       );
+
+      // =================================================
+      // OPEN PAYMENT WINDOW
+      // =================================================
 
       razorpay.open();
     } catch (error) {
       console.error(
-        "Booking/payment error:",
+        "Payment error:",
         error
       );
 
       toast.error(
         error.response?.data
           ?.message ||
-          "Unable to create booking."
+          "Unable to start payment."
       );
-    } finally {
+
       setLoading(false);
     }
   };
 
+  // =====================================================
+  // FORMAT SELECTED TIME
+  // =====================================================
+
+  const formatTime = (time) => {
+    if (!time) {
+      return "";
+    }
+
+    const [hours, minutes] =
+      time.split(":").map(Number);
+
+    const date =
+      new Date();
+
+    date.setHours(
+      hours,
+      minutes,
+      0,
+      0
+    );
+
+    return date.toLocaleTimeString(
+      [],
+      {
+        hour: "numeric",
+        minute: "2-digit",
+      }
+    );
+  };
+
+  // =====================================================
+  // UI
+  // =====================================================
+
   return (
     <div className="bg-white rounded-3xl shadow-lg p-8">
 
-      <h2 className="text-2xl font-bold mb-6">
-        Book Charging Slot
-      </h2>
+      {/* =================================================
+          HEADER
+      ================================================= */}
+
+      <div className="mb-6">
+
+        <h2 className="text-2xl font-bold text-gray-900">
+          Book & Pay
+        </h2>
+
+        <p className="text-gray-500 mt-1">
+          Select your charging date and available slot.
+        </p>
+
+      </div>
+
+      {/* =================================================
+          PRICE
+      ================================================= */}
+
+      <div className="mb-6 bg-green-50 border border-green-200 rounded-xl p-5">
+
+        <p className="text-gray-500">
+          Booking Amount
+        </p>
+
+        <p className="text-3xl font-bold text-green-600">
+          ₹{amount}
+        </p>
+
+        <p className="text-sm text-gray-500 mt-1">
+          Final amount is calculated by the server.
+        </p>
+
+      </div>
+
+      {/* =================================================
+          FORM
+      ================================================= */}
 
       <form
         onSubmit={handleSubmit}
         className="space-y-6"
       >
 
-        {/* Date */}
+        {/* =================================================
+            DATE
+        ================================================= */}
+
         <div>
-          <label className="block mb-2 font-semibold">
+
+          <label className="block mb-2 font-semibold text-gray-800">
             Booking Date
           </label>
 
           <input
             type="date"
             value={bookingDate}
-            onChange={(e) =>
+            onChange={(e) => {
               setBookingDate(
                 e.target.value
-              )
-            }
+              );
+
+              // Reset previously
+              // selected slot
+
+              setStartTime("");
+
+              setEndTime("");
+            }}
             min={
               new Date()
                 .toISOString()
                 .split("T")[0]
             }
             required
-            className="w-full border rounded-xl p-3 focus:ring-2 focus:ring-green-500 outline-none"
+            className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"
           />
+
         </div>
 
-        {/* Start */}
-        <div>
-          <label className="block mb-2 font-semibold">
-            Start Time
-          </label>
+        {/* =================================================
+            LIVE SLOT PICKER
+        ================================================= */}
 
-          <input
-            type="time"
-            value={startTime}
-            onChange={(e) =>
-              setStartTime(
-                e.target.value
-              )
-            }
-            required
-            className="w-full border rounded-xl p-3 focus:ring-2 focus:ring-green-500 outline-none"
-          />
-        </div>
+        <SlotPicker
+          stationId={stationId}
+          bookingDate={bookingDate}
+          startTime={startTime}
+          endTime={endTime}
+          setStartTime={setStartTime}
+          setEndTime={setEndTime}
+        />
 
-        {/* End */}
-        <div>
-          <label className="block mb-2 font-semibold">
-            End Time
-          </label>
+        {/* =================================================
+            SELECTED SLOT SUMMARY
+        ================================================= */}
 
-          <input
-            type="time"
-            value={endTime}
-            onChange={(e) =>
-              setEndTime(
-                e.target.value
-              )
-            }
-            required
-            className="w-full border rounded-xl p-3 focus:ring-2 focus:ring-green-500 outline-none"
-          />
-        </div>
+        {startTime &&
+          endTime && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
 
-        {/* Submit */}
+              <p className="text-sm text-gray-500">
+                Your Selected Slot
+              </p>
+
+              <p className="text-xl font-bold text-blue-700 mt-1">
+                {formatTime(startTime)}
+                {" - "}
+                {formatTime(endTime)}
+              </p>
+
+            </div>
+          )}
+
+        {/* =================================================
+            PAY BUTTON
+        ================================================= */}
+
         <button
           type="submit"
-          disabled={loading}
+          disabled={
+            loading ||
+            !bookingDate ||
+            !startTime ||
+            !endTime
+          }
           className={`w-full py-4 rounded-xl font-bold text-white transition ${
-            loading
+            loading ||
+            !bookingDate ||
+            !startTime ||
+            !endTime
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-green-600 hover:bg-green-700"
           }`}
         >
           {loading
-            ? "Processing..."
-            : "Book & Pay"}
+            ? "Opening Payment..."
+            : startTime &&
+              endTime
+            ? `Pay ₹${amount} & Book`
+            : "Select a Slot to Continue"}
         </button>
 
       </form>
+
     </div>
   );
 }

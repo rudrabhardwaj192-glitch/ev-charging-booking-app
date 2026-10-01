@@ -9,11 +9,11 @@ import {
   FaStar,
   FaChargingStation,
   FaRoute,
-  FaExclamationTriangle,
 } from "react-icons/fa";
 
+
 // =====================================================
-// CALCULATE DISTANCE
+// DISTANCE CALCULATOR
 // Haversine Formula
 // =====================================================
 
@@ -53,6 +53,7 @@ function calculateDistance(
   return R * c;
 }
 
+
 // =====================================================
 // COMPONENT
 // =====================================================
@@ -74,9 +75,9 @@ function NearbyStations({
   const [radius, setRadius] =
     useState(25);
 
-  // =====================================================
+  // ===================================================
   // GET USER LOCATION
-  // =====================================================
+  // ===================================================
 
   const getUserLocation = () => {
     if (!navigator.geolocation) {
@@ -139,7 +140,6 @@ function NearbyStations({
         setLocationError(message);
         setLocationLoading(false);
       },
-
       {
         enableHighAccuracy: true,
         timeout: 10000,
@@ -148,19 +148,19 @@ function NearbyStations({
     );
   };
 
-  // =====================================================
-  // AUTOMATIC LOCATION REQUEST
-  // =====================================================
+  // ===================================================
+  // AUTOMATICALLY TRY LOCATION
+  // ===================================================
 
   useEffect(() => {
     getUserLocation();
   }, []);
 
-  // =====================================================
-  // ALL STATIONS WITH DISTANCE
-  // =====================================================
+  // ===================================================
+  // CALCULATE NEARBY STATIONS
+  // ===================================================
 
-  const stationsWithDistance = useMemo(() => {
+  const nearbyStations = useMemo(() => {
     if (!location) {
       return [];
     }
@@ -171,13 +171,7 @@ function NearbyStations({
           station.latitude !== null &&
           station.latitude !== undefined &&
           station.longitude !== null &&
-          station.longitude !== undefined &&
-          Number.isFinite(
-            Number(station.latitude)
-          ) &&
-          Number.isFinite(
-            Number(station.longitude)
-          )
+          station.longitude !== undefined
       )
       .map((station) => {
         const distance =
@@ -193,39 +187,23 @@ function NearbyStations({
           distance,
         };
       })
+      .filter(
+        (station) =>
+          station.distance <= radius
+      )
       .sort(
         (a, b) =>
           a.distance - b.distance
       );
-  }, [stations, location]);
-
-  // =====================================================
-  // STATIONS INSIDE SELECTED RADIUS
-  // =====================================================
-
-  const nearbyStations = useMemo(() => {
-    return stationsWithDistance.filter(
-      (station) =>
-        station.distance <= radius
-    );
   }, [
-    stationsWithDistance,
+    stations,
+    location,
     radius,
   ]);
 
-  // =====================================================
-  // NEAREST STATION
-  // Used as fallback when radius has no result
-  // =====================================================
-
-  const nearestStation =
-    stationsWithDistance.length > 0
-      ? stationsWithDistance[0]
-      : null;
-
-  // =====================================================
-  // GOOGLE MAPS DIRECTIONS
-  // =====================================================
+  // ===================================================
+  // GOOGLE MAPS NAVIGATION
+  // ===================================================
 
   const openNavigation = (
     station
@@ -250,206 +228,9 @@ function NearbyStations({
     );
   };
 
-  // =====================================================
-  // FORMAT DISTANCE
-  // =====================================================
-
-  const formatDistance = (
-    distance
-  ) => {
-    if (distance < 1) {
-      return `${Math.round(
-        distance * 1000
-      )} m`;
-    }
-
-    return `${distance.toFixed(1)} km`;
-  };
-
-  // =====================================================
-  // STATION CARD
-  // =====================================================
-
-  const StationCard = ({
-    station,
-    fallback = false,
-  }) => {
-    return (
-      <div
-        className={`border rounded-2xl p-5 transition ${
-          fallback
-            ? "border-orange-200 bg-orange-50"
-            : "border-gray-200 bg-white hover:shadow-md"
-        }`}
-      >
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
-
-          {/* =================================================
-              STATION INFORMATION
-          ================================================= */}
-
-          <div className="flex gap-4">
-
-            <div
-              className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${
-                station.available
-                  ? "bg-green-100"
-                  : "bg-red-100"
-              }`}
-            >
-              <FaChargingStation
-                className={`text-2xl ${
-                  station.available
-                    ? "text-green-600"
-                    : "text-red-500"
-                }`}
-              />
-            </div>
-
-            <div>
-
-              <div className="flex flex-wrap items-center gap-2">
-
-                <h4 className="text-xl font-bold text-gray-900">
-                  {station.name}
-                </h4>
-
-                <span
-                  className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                    station.available
-                      ? "bg-green-100 text-green-700"
-                      : "bg-red-100 text-red-700"
-                  }`}
-                >
-                  {station.available
-                    ? "Available"
-                    : "Unavailable"}
-                </span>
-
-              </div>
-
-              {/* LOCATION */}
-
-              <div className="flex items-center gap-2 text-gray-500 mt-2">
-
-                <FaMapMarkerAlt className="text-red-500" />
-
-                <span>
-                  {station.location}
-                </span>
-
-              </div>
-
-              {/* DETAILS */}
-
-              <div className="flex flex-wrap items-center gap-4 mt-3">
-
-                {/* DISTANCE */}
-
-                <span className="flex items-center gap-1.5 font-bold text-blue-600">
-
-                  <FaLocationArrow />
-
-                  {formatDistance(
-                    station.distance
-                  )}
-
-                </span>
-
-                {/* POWER */}
-
-                <span className="flex items-center gap-1.5 text-gray-600">
-
-                  <FaBolt className="text-yellow-500" />
-
-                  {station.power} kW
-
-                </span>
-
-                {/* CHARGER */}
-
-                <span className="text-gray-600">
-                  {station.charger}
-                </span>
-
-                {/* PRICE */}
-
-                <span className="flex items-center gap-1 text-green-600 font-semibold">
-
-                  <FaRupeeSign />
-
-                  {station.price}/kWh
-
-                </span>
-
-                {/* RATING */}
-
-                <span className="flex items-center gap-1 text-yellow-500">
-
-                  <FaStar />
-
-                  {Number(
-                    station.rating || 0
-                  ).toFixed(1)}
-
-                </span>
-
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* =================================================
-              ACTIONS
-          ================================================= */}
-
-          <div className="flex flex-col sm:flex-row gap-3 lg:min-w-[300px]">
-
-            <button
-              type="button"
-              onClick={() =>
-                openNavigation(
-                  station
-                )
-              }
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition"
-            >
-              <FaRoute />
-              Directions
-            </button>
-
-            <button
-              type="button"
-              disabled={
-                !station.available
-              }
-              onClick={() =>
-                navigate(
-                  `/stations/${station.id}`
-                )
-              }
-              className={`flex-1 px-5 py-3 rounded-xl font-bold transition ${
-                station.available
-                  ? "bg-green-600 hover:bg-green-700 text-white"
-                  : "bg-gray-200 text-gray-500 cursor-not-allowed"
-              }`}
-            >
-              {station.available
-                ? "View & Book"
-                : "Unavailable"}
-            </button>
-
-          </div>
-
-        </div>
-      </div>
-    );
-  };
-
-  // =====================================================
+  // ===================================================
   // RENDER
-  // =====================================================
+  // ===================================================
 
   return (
     <section className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
@@ -532,11 +313,13 @@ function NearbyStations({
                 : "bg-green-600 hover:bg-green-700"
             }`}
           >
+
             <FaLocationArrow />
 
             {locationLoading
               ? "Finding..."
               : "Use My Location"}
+
           </button>
 
         </div>
@@ -544,10 +327,11 @@ function NearbyStations({
       </div>
 
       {/* =================================================
-          LOCATION ERROR
+          ERROR
       ================================================= */}
 
       {locationError && (
+
         <div className="mt-5 bg-red-50 border border-red-200 rounded-xl p-4">
 
           <p className="text-red-600 font-semibold">
@@ -563,13 +347,43 @@ function NearbyStations({
           </button>
 
         </div>
+
       )}
 
       {/* =================================================
-          LOCATION DETECTED
+          LOCATION NOT AVAILABLE
+      ================================================= */}
+
+      {!location &&
+        !locationError &&
+        !locationLoading && (
+
+          <div className="mt-6 bg-green-50 rounded-xl p-5 text-center">
+
+            <FaLocationArrow className="text-green-600 text-3xl mx-auto mb-3" />
+
+            <p className="font-semibold text-gray-800">
+              Find charging stations around you
+            </p>
+
+            <button
+              type="button"
+              onClick={getUserLocation}
+              className="mt-3 bg-green-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-green-700"
+            >
+              Enable Location
+            </button>
+
+          </div>
+
+        )}
+
+      {/* =================================================
+          USER LOCATION FOUND
       ================================================= */}
 
       {location && (
+
         <div className="mt-6">
 
           <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -591,7 +405,29 @@ function NearbyStations({
           </div>
 
           {/* =================================================
-              STATIONS FOUND
+              NO STATIONS
+          ================================================= */}
+
+          {nearbyStations.length === 0 && (
+
+            <div className="mt-6 bg-gray-50 rounded-xl p-10 text-center">
+
+              <FaChargingStation className="text-gray-300 text-5xl mx-auto mb-4" />
+
+              <h3 className="text-xl font-bold text-gray-700">
+                No stations found nearby
+              </h3>
+
+              <p className="text-gray-500 mt-2">
+                Try increasing the search radius.
+              </p>
+
+            </div>
+
+          )}
+
+          {/* =================================================
+              STATION LIST
           ================================================= */}
 
           {nearbyStations.length > 0 && (
@@ -616,125 +452,168 @@ function NearbyStations({
 
               {nearbyStations.map(
                 (station) => (
-                  <StationCard
+
+                  <div
                     key={station.id}
-                    station={station}
-                  />
-                )
-              )}
+                    className="border border-gray-200 rounded-2xl p-5 hover:shadow-md transition"
+                  >
 
-            </div>
-          )}
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
 
-          {/* =================================================
-              NO STATIONS IN RADIUS
-          ================================================= */}
+                      {/* =================================================
+                          STATION INFO
+                      ================================================= */}
 
-          {nearbyStations.length === 0 &&
-            nearestStation && (
+                      <div className="flex gap-4">
 
-              <div className="mt-6">
+                        <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center shrink-0">
 
-                {/* WARNING */}
+                          <FaChargingStation className="text-green-600 text-2xl" />
 
-                <div className="bg-orange-50 border border-orange-200 rounded-xl p-5">
+                        </div>
 
-                  <div className="flex items-start gap-3">
+                        <div>
 
-                    <FaExclamationTriangle className="text-orange-500 text-xl mt-1" />
+                          <div className="flex flex-wrap items-center gap-2">
 
-                    <div>
+                            <h4 className="text-xl font-bold text-gray-900">
+                              {station.name}
+                            </h4>
 
-                      <h3 className="font-bold text-orange-800">
-                        No stations within {radius} km
-                      </h3>
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                station.available
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {station.available
+                                ? "Available"
+                                : "Unavailable"}
+                            </span>
 
-                      <p className="text-orange-700 mt-1">
-                        We found the nearest available station instead.
-                      </p>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-gray-500 mt-2">
+
+                            <FaMapMarkerAlt className="text-red-500" />
+
+                            <span>
+                              {station.location}
+                            </span>
+
+                          </div>
+
+                          {/* DISTANCE */}
+
+                          <div className="flex flex-wrap items-center gap-4 mt-3">
+
+                            <span className="flex items-center gap-1.5 font-bold text-blue-600">
+
+                              <FaLocationArrow />
+
+                              {station.distance < 1
+                                ? `${Math.round(
+                                    station.distance *
+                                      1000
+                                  )} m`
+                                : `${station.distance.toFixed(
+                                    1
+                                  )} km`}
+
+                            </span>
+
+                            <span className="flex items-center gap-1.5 text-gray-600">
+
+                              <FaBolt className="text-yellow-500" />
+
+                              {station.power} kW
+
+                            </span>
+
+                            <span className="text-gray-600">
+                              {station.charger}
+                            </span>
+
+                            <span className="flex items-center gap-1 text-green-600 font-semibold">
+
+                              <FaRupeeSign />
+
+                              {station.price}/kWh
+
+                            </span>
+
+                            <span className="flex items-center gap-1 text-yellow-500">
+
+                              <FaStar />
+
+                              {Number(
+                                station.rating || 0
+                              ).toFixed(1)}
+
+                            </span>
+
+                          </div>
+
+                        </div>
+
+                      </div>
+
+                      {/* =================================================
+                          ACTIONS
+                      ================================================= */}
+
+                      <div className="flex flex-col sm:flex-row gap-3 lg:min-w-[280px]">
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openNavigation(
+                              station
+                            )
+                          }
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition"
+                        >
+                          <FaRoute />
+                          Directions
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={
+                            !station.available
+                          }
+                          onClick={() =>
+                            navigate(
+                              `/stations/${station.id}`
+                            )
+                          }
+                          className={`flex-1 px-5 py-3 rounded-xl font-bold transition ${
+                            station.available
+                              ? "bg-green-600 hover:bg-green-700 text-white"
+                              : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                          }`}
+                        >
+                          {station.available
+                            ? "View & Book"
+                            : "Unavailable"}
+                        </button>
+
+                      </div>
 
                     </div>
 
                   </div>
 
-                </div>
-
-                {/* NEAREST */}
-
-                <div className="mt-4">
-
-                  <h3 className="text-lg font-bold text-gray-800 mb-3">
-                    Nearest Charging Station
-                  </h3>
-
-                  <StationCard
-                    station={
-                      nearestStation
-                    }
-                    fallback
-                  />
-
-                </div>
-
-                {/* QUICK RADIUS */}
-
-                <div className="mt-4 flex flex-wrap gap-2">
-
-                  <span className="text-sm text-gray-500 mr-2 py-2">
-                    Search farther:
-                  </span>
-
-                  {[25, 50, 100]
-                    .filter(
-                      (value) =>
-                        value !== radius
-                    )
-                    .map(
-                      (value) => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() =>
-                            setRadius(
-                              value
-                            )
-                          }
-                          className="px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg font-semibold"
-                        >
-                          Within {value} km
-                        </button>
-                      )
-                    )}
-
-                </div>
-
-              </div>
-            )}
-
-          {/* =================================================
-              NO COORDINATE DATA
-          ================================================= */}
-
-          {stationsWithDistance.length ===
-            0 && (
-
-            <div className="mt-6 bg-gray-50 rounded-xl p-10 text-center">
-
-              <FaChargingStation className="text-gray-300 text-5xl mx-auto mb-4" />
-
-              <h3 className="text-xl font-bold text-gray-700">
-                No station location data available
-              </h3>
-
-              <p className="text-gray-500 mt-2">
-                Charging stations need latitude and longitude coordinates.
-              </p>
+                )
+              )}
 
             </div>
 
           )}
 
         </div>
+
       )}
 
     </section>

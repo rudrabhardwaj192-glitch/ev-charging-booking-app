@@ -7,8 +7,10 @@ import {
   FaCog,
   FaSignOutAlt,
   FaBolt,
+  FaCar,
 } from "react-icons/fa";
-import { NavLink } from "react-router-dom";
+
+import { NavLink, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
 const menu = [
@@ -28,6 +30,11 @@ const menu = [
     icon: <FaCalendarAlt />,
   },
   {
+    name: "My EV",
+    path: "/dashboard/vehicle",
+    icon: <FaCar />,
+  },
+  {
     name: "Favorites",
     path: "/dashboard/favorites",
     icon: <FaHeart />,
@@ -45,6 +52,18 @@ const menu = [
 ];
 
 function Sidebar() {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("userRole");
+
+    navigate("/login");
+  };
+
   return (
     <motion.aside
       initial={{ x: -100 }}
@@ -52,9 +71,13 @@ function Sidebar() {
       transition={{ duration: 0.4 }}
       className="w-72 bg-white shadow-xl border-r flex flex-col"
     >
-      {/* Logo */}
+      {/* =================================================
+          LOGO
+      ================================================= */}
+
       <div className="p-8 border-b">
         <div className="flex items-center gap-3">
+
           <div className="bg-green-600 p-3 rounded-xl text-white">
             <FaBolt size={24} />
           </div>
@@ -68,12 +91,18 @@ function Sidebar() {
               Smart Charging
             </p>
           </div>
+
         </div>
       </div>
 
-      {/* Navigation */}
+      {/* =================================================
+          NAVIGATION
+      ================================================= */}
+
       <div className="flex-1 py-6">
+
         {menu.map((item) => (
+
           <NavLink
             key={item.name}
             to={item.path}
@@ -85,18 +114,29 @@ function Sidebar() {
               }`
             }
           >
-            <span className="text-xl">{item.icon}</span>
+
+            <span className="text-xl">
+              {item.icon}
+            </span>
 
             <span className="font-medium">
               {item.name}
             </span>
+
           </NavLink>
+
         ))}
+
       </div>
 
-      {/* User Card */}
+      {/* =================================================
+          USER CARD
+      ================================================= */}
+
       <div className="p-5 border-t">
+
         <div className="bg-slate-100 rounded-xl p-4 flex items-center gap-3 mb-4">
+
           <img
             src="https://ui-avatars.com/api/?name=Rudra&background=16a34a&color=fff"
             alt="Profile"
@@ -104,21 +144,39 @@ function Sidebar() {
           />
 
           <div>
+
             <h3 className="font-semibold">
-              Rudra
+              {localStorage.getItem(
+                "userName"
+              ) || "EV User"}
             </h3>
 
             <p className="text-gray-500 text-sm">
               EV User
             </p>
+
           </div>
+
         </div>
 
-        <button className="w-full bg-red-500 hover:bg-red-600 text-white rounded-xl py-3 flex justify-center items-center gap-3 transition">
+        {/* =================================================
+            LOGOUT
+        ================================================= */}
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full bg-red-500 hover:bg-red-600 text-white rounded-xl py-3 flex justify-center items-center gap-3 transition"
+        >
+
           <FaSignOutAlt />
+
           Logout
+
         </button>
+
       </div>
+
     </motion.aside>
   );
 }
